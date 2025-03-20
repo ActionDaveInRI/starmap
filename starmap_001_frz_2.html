@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fixed Integrated Starmap – Space Game</title>
+  <style>
+    /* Basic reset & full-screen canvas */
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: "Segoe UI", sans-serif;
+      background: #000;
+    }
+    #container {
+      position: absolute;
+      top: 60px; /* leave room for menu bar */
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    canvas { display: block; }
+    
+    /* Top Menu Bar styling */
+    #menubar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #ccc;
+      border-bottom: 2px solid #888;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      z-index: 100;
+    }
+    #menubar ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+    #menubar li {
+      position: relative;
+      margin-right: 20px;
+      padding: 5px 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    /* Pulldown menu styles */
+    #menubar li .submenu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #eee;
+      border: 1px solid #888;
+      padding: 5px 0;
+      min-width: 180px;
+      z-index: 200;
+    }
+    #menubar li:hover .submenu {
+      display: block;
+    }
+    #menubar li .submenu li {
+      padding: 5px 10px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    #menubar li .submenu li:hover {
+      background: #ddd;
+    }
+    /* Controls styling */
+    #menubar input[type="range"],
+    #menubar select,
+    #menubar button {
+      margin-top: 5px;
+      width: 150px;
+    }
+    #menubar label {
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #menubar span {
+      margin-left: 5px;
+    }
+    
+    /* Scanned Star Index Panel */
+    #scannedIndex {
+      position: absolute;
+      top: 70px;
+      right: 10px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 12px;
+      z-index: 300;
+      border: 1px solid #888;
+    }
+    #scannedIndex li {
+      margin-bottom: 5px;
+    }
+    .clickableLink {
+      text-decoration: underline;
+      color: #ccc;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+    .scannedLink {
+      color: #0f0;
+      text-shadow: 0 0 5px #0f0;
+    }
+    
+    /* System Preview Panel at bottom left */
+    #systemPreview {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #888;
+      z-index: 300;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Menu Bar -->
+  <div id="menubar">
+    <ul>
+      <!-- Starfield Menu with new star options -->
+      <li class="menu">
+        Starfield
+        <ul class="submenu">
+          <li>
+            Star Count:<br>
+            <input type="range" id="sliderStarCount" min="1000" max="50000" step="1000" value="30000">
+            <span id="valStarCount">30000</span>
+          </li>
+          <li>
+            Star Size:<br>
+            <input type="range" id="sliderStarSize" min="1" max="10" step="0.1" value="5">
+            <span id="valStarSize">5.00</span>
+          </li>
+          <li>
+            <label>
+              <input type="checkbox" id="checkboxRealisticStars">
+              Use Realistic Star Colors
+            </label>
+          </li>
+          <li>
+            Star Color Mix (0=realistic, 1=random):<br>
+            <input type="range" id="sliderStarColorMix" min="0" max="1" step="0.01" value="0.5">
+            <span id="valStarColorMix">0.50</span>
+          </li>
+          <li>
+            Star Opacity:<br>
+            <input type="range" id="sliderStarOpacity" min="0" max="1" step="0.01" value="1">
+            <span id="valStarOpacity">1.00</span>
+          </li>
+          <li><button id="regenStarfieldButton">Regen Stars</button></li>
+        </ul>
+      </li>
+      <!-- Planets & Moons Menu -->
+      <li class="menu">
+        Planets &amp; Moons
+        <ul class="submenu">
+          <li>
+            Planet Count (0-5):<br>
+            <input type="range" id="sliderPlanetCount" min="0" max="5" step="1" value="3">
+            <span id="valPlanetCount">3</span>
+          </li>
+          <li>
+            Moon Count (0-3):<br>
+            <input type="range" id="sliderMoonCount" min="0" max="3" step="1" value="1">
+            <span id="valMoonCount">1</span>
+          </li>
+          <li>
+            Moon Size Mult.:<br>
+            <input type="range" id="sliderMoonSizeMult" min="0.1" max="0.5" step="0.01" value="0.3">
+            <span id="valMoonSizeMult">0.30</span>
+          </li>
+        </ul>
+      </li>
+      <!-- View Options Menu -->
+      <li class="menu">
+        View Options
+        <ul class="submenu">
+          <li>
+            <label>
+              <input type="checkbox" id="checkboxHideSector">
+              Hide Stars Outside Current Sector
+            </label>
+          </li>
+          <li>
+            <label>
+              <input type="checkbox" id="checkboxHideGrid">
+              Hide Stars Outside Current Grid
+            </label>
+          </li>
+        </ul>
+      </li>
+      <!-- System Bounding Sphere Menu -->
+      <li class="menu">
+        System Bounding Sphere
+        <ul class="submenu">
+          <li>
+            <label>
+              <input type="checkbox" id="checkboxBoundingSphere">
+              Enable System Bounding Sphere
+            </label>
+          </li>
+          <li>
+            Glow Intensity:<br>
+            <input type="range" id="sliderGlowIntensity" min="0" max="1" step="0.01" value="0.07">
+            <span id="valGlowIntensity">0.07</span>
+          </li>
+          <li>
+            Glow Size Factor:<br>
+            <input type="range" id="sliderGlowSizeFactor" min="0.1" max="5" step="0.1" value="1.0">
+            <span id="valGlowSizeFactor">1.0</span>
+          </li>
+        </ul>
+      </li>
+      <!-- Selection Cursor Options Menu -->
+      <li class="menu">
+        Selection Cursor Options
+        <ul class="submenu">
+          <li>
+            <label>
+              <input type="checkbox" id="checkboxSelectionCursor" checked>
+              Enable Selection Cursor
+            </label>
+          </li>
+          <li>
+            Cursor Base Scale:<br>
+            <input type="range" id="sliderCursorBaseScale" min="0.5" max="5" step="0.1" value="1.0">
+            <span id="valCursorBaseScale">1.0</span>
+          </li>
+          <li>
+            Cursor Pulse Speed:<br>
+            <input type="range" id="sliderCursorPulseSpeed" min="0.001" max="0.02" step="0.001" value="0.005">
+            <span id="valCursorPulseSpeed">0.005</span>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  
+  <!-- Scanned Star Index Panel -->
+  <div id="scannedIndex">
+    <strong>Scanned Systems:</strong>
+    <ul id="indexList"></ul>
+  </div>
+  
+  <!-- System Preview Panel -->
+  <div id="systemPreview">
+    <strong>Selected System:</strong>
+    <div id="systemPreviewContent">None</div>
+  </div>
+  
+  <!-- Main Canvas Container -->
+  <div id="container"></div>
+  
+  <!-- Include Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <!-- OG Planet Generator Shaders (Placeholders) -->
+  <script id="ogPlanetVertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    varying float vNoise;
+    uniform float noiseScale;
+    uniform float mountainHeight;
+    uniform float seaLevel;
+    float snoise(vec3 v) {
+      return fract(sin(dot(v, vec3(12.9898, 78.233, 45.5432))) * 43758.5453);
+    }
+    void main(){
+      vUv = uv;
+      float n = snoise(position * noiseScale);
+      vNoise = n;
+      float displacement = max(0.0, n - seaLevel) * mountainHeight;
+      vec3 displaced = position * (1.0 + displacement);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+    }
+  </script>
+  <script id="ogPlanetFragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec2 vUv;
+    varying float vNoise;
+    uniform float temperature;
+    vec3 coldColor = vec3(0.2, 0.4, 0.8);
+    vec3 warmColor = vec3(0.9, 0.7, 0.3);
+    void main(){
+      vec3 baseColor = mix(coldColor, warmColor, temperature);
+      float modulation = 0.8 + 0.4 * vNoise;
+      vec3 finalColor = baseColor * modulation;
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  </script>
+  
+  <!-- Consolidated Script -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // ===== Global Variables =====
+      let scene, camera, renderer, controls;
+      let starfield, starfieldGeo, starfieldMat;
+      let selectedStarIndex = null;
+      let markedStars = [];
+      let starMeshes = {};
+      let hoverCursor;
+      let activeSectorHighlight = null;
+      let activeGridHighlight = null;
+      let selectedCursor = null; // For the selected system cursor.
+      let glowSizeFactor = 1.0;
+      let glowIntensity = 0.07;
+      let hideOutsideSector = false;
+      let hideOutsideGrid = false;
+      let allStarPositions = [];
+      let allStarColors = [];
+      let boundingSphereEnabled = false; // Default off
+      
+      // Star Options globals
+      let realisticStarsEnabled = false;
+      let starColorMix = 0.5;
+      let starOpacity = 1.0;
+      
+      // Selection Cursor Options globals
+      let selectionCursorEnabled = true;
+      let cursorBaseScale = 1.0;
+      let cursorPulseSpeed = 0.005;
+      
+      const SECTOR_SIZE = 500;
+      let sectorGrid, subsectorGrid;
+      
+      // ===== Scene Setup =====
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 10000);
+      camera.position.set(0, 0, 1500);
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.getElementById("container").appendChild(renderer.domElement);
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.minDistance = 2;
+      controls.maxDistance = 2500;
+      
+      // ===== Utility Functions =====
+      function generateStarName() {
+        const names = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+        return names[Math.floor(Math.random() * names.length)] + "-" + Math.floor(Math.random() * 1000);
+      }
+      
+      function assignSectorToStar(starPos) {
+        const xSector = Math.floor(starPos.x / SECTOR_SIZE);
+        const ySector = Math.floor(starPos.y / SECTOR_SIZE);
+        const zSector = Math.floor(starPos.z / SECTOR_SIZE);
+        return {
+          coords: { x: xSector, y: ySector, z: zSector },
+          name: `Sector(${xSector},${ySector},${zSector})`
+        };
+      }
+      
+      function assignGridToStar(starPos) {
+        const GRID_DIVISIONS = 3;
+        const sectorOrigin = new THREE.Vector3(
+          Math.floor(starPos.x / SECTOR_SIZE) * SECTOR_SIZE,
+          Math.floor(starPos.y / SECTOR_SIZE) * SECTOR_SIZE,
+          Math.floor(starPos.z / SECTOR_SIZE) * SECTOR_SIZE
+        );
+        const localPos = starPos.clone().sub(sectorOrigin);
+        const cellSize = SECTOR_SIZE / GRID_DIVISIONS;
+        const grid = {
+          x: Math.floor(localPos.x / cellSize),
+          y: Math.floor(localPos.y / cellSize),
+          z: Math.floor(localPos.z / cellSize)
+        };
+        grid.toString = function() {
+          return `Grid(${this.x},${this.y},${this.z})`;
+        };
+        return grid;
+      }
+      
+      function parseSectorCoords(starPos) {
+        return {
+          x: Math.floor(starPos.x / SECTOR_SIZE),
+          y: Math.floor(starPos.y / SECTOR_SIZE),
+          z: Math.floor(starPos.z / SECTOR_SIZE)
+        };
+      }
+      
+      function generateFullStarName(baseName, starPos) {
+        return baseName + " in " + assignSectorToStar(starPos).name;
+      }
+      
+      // ===== Toggle Highlight Functions =====
+      function toggleSectorHighlight(sectorCoords) {
+        if (activeSectorHighlight &&
+            activeSectorHighlight.userData.sectorCoords.x === sectorCoords.x &&
+            activeSectorHighlight.userData.sectorCoords.y === sectorCoords.y &&
+            activeSectorHighlight.userData.sectorCoords.z === sectorCoords.z) {
+          scene.remove(activeSectorHighlight);
+          activeSectorHighlight = null;
+        } else {
+          if (activeSectorHighlight) { scene.remove(activeSectorHighlight); }
+          const sectorOrigin = new THREE.Vector3(
+            sectorCoords.x * SECTOR_SIZE,
+            sectorCoords.y * SECTOR_SIZE,
+            sectorCoords.z * SECTOR_SIZE
+          );
+          const half = SECTOR_SIZE / 2;
+          const boxGeo = new THREE.BoxGeometry(SECTOR_SIZE, SECTOR_SIZE, SECTOR_SIZE);
+          const edges = new THREE.EdgesGeometry(boxGeo);
+          const lineMat = new THREE.LineDashedMaterial({
+            color: 0x00ff00,
+            dashSize: 20,
+            gapSize: 10,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.7
+          });
+          activeSectorHighlight = new THREE.LineSegments(edges, lineMat);
+          activeSectorHighlight.computeLineDistances();
+          activeSectorHighlight.position.copy(sectorOrigin).addScalar(half);
+          activeSectorHighlight.userData.sectorCoords = sectorCoords;
+          scene.add(activeSectorHighlight);
+        }
+      }
+      
+      function toggleGridHighlight(gridCoords, starPos) {
+        const GRID_DIVISIONS = 3;
+        const sectorOrigin = new THREE.Vector3(
+          Math.floor(starPos.x / SECTOR_SIZE) * SECTOR_SIZE,
+          Math.floor(starPos.y / SECTOR_SIZE) * SECTOR_SIZE,
+          Math.floor(starPos.z / SECTOR_SIZE) * SECTOR_SIZE
+        );
+        if (activeGridHighlight &&
+            activeGridHighlight.userData.gridCoords.x === gridCoords.x &&
+            activeGridHighlight.userData.gridCoords.y === gridCoords.y &&
+            activeGridHighlight.userData.gridCoords.z === gridCoords.z &&
+            activeGridHighlight.userData.sectorOrigin.equals(sectorOrigin)) {
+          scene.remove(activeGridHighlight);
+          activeGridHighlight = null;
+        } else {
+          if (activeGridHighlight) { scene.remove(activeGridHighlight); }
+          const cellSize = SECTOR_SIZE / GRID_DIVISIONS;
+          const gridGeo = new THREE.BoxGeometry(cellSize, cellSize, cellSize);
+          const gridMat = new THREE.LineDashedMaterial({
+            color: 0x00ffff,
+            dashSize: 2,
+            gapSize: 4,
+            linewidth: 1,
+            transparent: true,
+            opacity: 0.7
+          });
+          const gridEdges = new THREE.EdgesGeometry(gridGeo);
+          activeGridHighlight = new THREE.LineSegments(gridEdges, gridMat);
+          activeGridHighlight.computeLineDistances();
+          activeGridHighlight.position.set(
+            gridCoords.x * cellSize + cellSize / 2,
+            gridCoords.y * cellSize + cellSize / 2,
+            gridCoords.z * cellSize + cellSize / 2
+          );
+          activeGridHighlight.position.add(sectorOrigin);
+          activeGridHighlight.userData.gridCoords = gridCoords;
+          activeGridHighlight.userData.sectorOrigin = sectorOrigin.clone();
+          scene.add(activeGridHighlight);
+        }
+      }
+      
+      // ===== Create Gridlines =====
+      function createSectorGrid(size) {
+        const box = new THREE.BoxGeometry(size, size, size);
+        const edges = new THREE.EdgesGeometry(box);
+        const lineMat = new THREE.LineDashedMaterial({
+          color: 0xffbf00,
+          dashSize: 20,
+          gapSize: 10,
+          linewidth: 2,
+          transparent: true,
+          opacity: 0.2
+        });
+        const grid = new THREE.LineSegments(edges, lineMat);
+        grid.computeLineDistances();
+        return grid;
+      }
+      
+      function createSubsectorGrid(size, divisions) {
+        const half = size / 2;
+        const d = size / divisions;
+        const verts = [];
+        for (let i = 1; i < divisions; i++){
+          const x = -half + i * d;
+          for (let j = 0; j <= divisions; j++){
+            const y = -half + j * d;
+            verts.push(x, y, -half, x, y, half);
+          }
+          for (let k = 0; k <= divisions; k++){
+            const z = -half + k * d;
+            verts.push(x, -half, z, x, half, z);
+          }
+        }
+        for (let i = 1; i < divisions; i++){
+          const y = -half + i * d;
+          for (let j = 0; j <= divisions; j++){
+            const x = -half + j * d;
+            verts.push(x, y, -half, x, y, half);
+          }
+          for (let k = 0; k <= divisions; k++){
+            const z = -half + k * d;
+            verts.push(-half, y, z, half, y, z);
+          }
+        }
+        for (let i = 1; i < divisions; i++){
+          const z = -half + i * d;
+          for (let j = 0; j <= divisions; j++){
+            const x = -half + j * d;
+            verts.push(x, -half, z, x, half, z);
+          }
+          for (let k = 0; k <= divisions; k++){
+            const y = -half + k * d;
+            verts.push(-half, y, z, half, y, z);
+          }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+        const mat = new THREE.LineBasicMaterial({ color: 0xffbf00, transparent: true, opacity: 0.1, linewidth: 1 });
+        return new THREE.LineSegments(geo, mat);
+      }
+      
+      // Create initial gridlines
+      sectorGrid = createSectorGrid(SECTOR_SIZE);
+      sectorGrid.position.set(0, 0, 0);
+      scene.add(sectorGrid);
+      subsectorGrid = createSubsectorGrid(SECTOR_SIZE, 3);
+      subsectorGrid.position.set(0, 0, 0);
+      scene.add(subsectorGrid);
+      
+      // ===== Create Selected Cursor =====
+      function createSelectedCursor(radius) {
+        // Multiply the system radius so the cursor surrounds the entire system.
+        const effectiveRadius = radius * 1.5;
+        const geometry = new THREE.RingGeometry(effectiveRadius * 1.1, effectiveRadius * 1.2, 64);
+        const material = new THREE.LineDashedMaterial({
+          color: 0xffffff,
+          dashSize: 5,
+          gapSize: 5,
+          linewidth: 2,
+          transparent: true,
+          opacity: 0.8
+        });
+        const cursor = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), material);
+        cursor.computeLineDistances();
+        cursor.baseScale = cursorBaseScale; // Use the global base scale
+        return cursor;
+      }
+      
+      // ===== System Preview Update =====
+      function updateSystemPreview(starObj) {
+        const previewDiv = document.getElementById("systemPreviewContent");
+        if (!starObj) {
+          previewDiv.innerHTML = "No system selected";
+          return;
+        }
+        const sectorData = assignSectorToStar(starObj.position);
+        const gridData = assignGridToStar(starObj.position);
+        let html = `<strong>${starObj.name}</strong><br>
+                    ${sectorData.name} / ${gridData.toString()}<br>
+                    Planets: ${starObj.planets.length}<br>`;
+        if (starObj.asteroidBelt) { html += "Asteroid Belt: Yes<br>"; }
+        if (starObj.oortCloud) { html += "Oort Cloud: Yes<br>"; }
+        previewDiv.innerHTML = html;
+        // Create a small canvas preview
+        const previewCanvas = document.createElement("canvas");
+        previewCanvas.width = 100;
+        previewCanvas.height = 100;
+        const ctx = previewCanvas.getContext("2d");
+        // Draw star core
+        ctx.beginPath();
+        ctx.arc(50, 50, 10, 0, Math.PI * 2);
+        ctx.fillStyle = starObj.color.getStyle();
+        ctx.fill();
+        // Draw planet orbits (a rough sketch)
+        starObj.planets.forEach(planet => {
+          let orbit = planet.userData.orbitDistance;
+          let orbitRadius = (orbit / 10) * 40; // normalized for preview
+          ctx.beginPath();
+          ctx.arc(50, 50, orbitRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = "#555";
+          ctx.setLineDash([2, 2]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Draw a small planet marker at a constant angle for preview
+          let angle = 0.5;
+          let x = 50 + orbitRadius * Math.cos(angle);
+          let y = 50 + orbitRadius * Math.sin(angle);
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = "#ff0";
+          ctx.fill();
+        });
+        previewDiv.appendChild(previewCanvas);
+      }
+      
+      // ===== Create Scanned Indicator =====
+      function createScannedIndicator(starObj) {
+        const size = 64;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.beginPath();
+        ctx.arc(size/2, size/2, size/8, 0, Math.PI*2);
+        ctx.fillStyle = starObj.color.getStyle();
+        ctx.fill();
+        let gradient = ctx.createRadialGradient(size/2, size/2, size/8, size/2, size/2, size/2);
+        gradient.addColorStop(0, starObj.color.getStyle());
+        gradient.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(size/2, size/2, size/2 - 2, 0, Math.PI*2);
+        ctx.fill();
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(3, 3, 3);
+        starObj.group.add(sprite);
+        starObj.scannedIndicator = sprite;
+      }
+      
+      // ===== Scanned Star Index UI =====
+      function updateScannedIndex() {
+        const indexList = document.getElementById("indexList");
+        indexList.innerHTML = "";
+        markedStars.forEach(starObj => {
+          const li = document.createElement("li");
+          const starLink = document.createElement("span");
+          starLink.className = "clickableLink";
+          starLink.innerText = starObj.name.split(" in ")[0];
+          starLink.addEventListener("click", () => {
+            controls.target.copy(starObj.group.position);
+            updateSystemPreview(starObj);
+            // Update selected cursor:
+            if (selectedCursor && selectedCursor.parent) {
+              selectedCursor.parent.remove(selectedCursor);
+              selectedCursor = null;
+            }
+            const cursorRadius = starObj.boundingSphere ? starObj.boundingSphere.geometry.parameters.radius : 20;
+            selectedCursor = createSelectedCursor(cursorRadius);
+            starObj.group.add(selectedCursor);
+          });
+          const sectorData = assignSectorToStar(starObj.position);
+          const sectorLink = document.createElement("span");
+          sectorLink.className = "clickableLink";
+          sectorLink.innerText = sectorData.name;
+          sectorLink.addEventListener("click", () => {
+            toggleSectorHighlight(sectorData.coords);
+            updateScannedIndex();
+          });
+          const gridData = assignGridToStar(starObj.position);
+          const gridLink = document.createElement("span");
+          gridLink.className = "clickableLink";
+          gridLink.innerText = gridData.toString();
+          gridLink.addEventListener("click", () => {
+            toggleGridHighlight(gridData, starObj.position);
+            updateScannedIndex();
+          });
+          li.appendChild(starLink);
+          li.appendChild(document.createTextNode(" in "));
+          li.appendChild(sectorLink);
+          li.appendChild(document.createTextNode(" / "));
+          li.appendChild(gridLink);
+          indexList.appendChild(li);
+        });
+      }
+      
+      // ===== Glow Marker =====
+      function createSystemBoundingSphere(starObj, radius) {
+        const sphereGeo = new THREE.SphereGeometry(radius, 32, 32);
+        const sphereMat = new THREE.MeshBasicMaterial({
+          color: 0xaaaaaa,
+          transparent: true,
+          opacity: glowIntensity,
+          side: THREE.BackSide,
+          blending: THREE.NormalBlending,
+          depthTest: false,
+          depthWrite: false
+        });
+        const boundingSphere = new THREE.Mesh(sphereGeo, sphereMat);
+        boundingSphere.scale.set(glowSizeFactor, glowSizeFactor, glowSizeFactor);
+        starObj.group.add(boundingSphere);
+        starObj.boundingSphere = boundingSphere;
+      }
+      
+      // ===== Mark Star with Solid Core =====
+      function markStar(index, pos, customName) {
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        scene.add(group);
+        const baseName = customName || generateStarName();
+        const fullName = generateFullStarName(baseName, pos);
+        const orbitGroup = new THREE.Group();
+        group.add(orbitGroup);
+        let colorArray = starfieldGeo.attributes.color.array;
+        let starColor = new THREE.Color(
+          colorArray[index * 3],
+          colorArray[index * 3 + 1],
+          colorArray[index * 3 + 2]
+        );
+        // Create a solid core sphere matching the star's color.
+        const coreGeo = new THREE.SphereGeometry(3, 16, 16);
+        const coreMat = new THREE.MeshBasicMaterial({ color: starColor });
+        const coreSphere = new THREE.Mesh(coreGeo, coreMat);
+        group.add(coreSphere);
+        const starObj = {
+          index: index,
+          position: pos.clone(),
+          name: fullName,
+          group: group,
+          orbitGroup: orbitGroup,
+          planets: [],
+          boundingSphere: null,
+          scannedIndicator: null,
+          color: starColor
+        };
+        markedStars.push(starObj);
+        starMeshes[index] = starObj;
+        console.log("Promoted star:", starObj.name, pos);
+        updateScannedIndex();
+        updateSystemPreview(starObj);
+        createScannedIndicator(starObj);
+        // Immediately add a selected cursor.
+        if (selectedCursor && selectedCursor.parent) {
+          selectedCursor.parent.remove(selectedCursor);
+          selectedCursor = null;
+        }
+        const cursorRadius = starObj.boundingSphere ? starObj.boundingSphere.geometry.parameters.radius : 20;
+        selectedCursor = createSelectedCursor(cursorRadius);
+        // Store the initial base scale.
+        selectedCursor.baseScale = cursorBaseScale;
+        starObj.group.add(selectedCursor);
+        return starObj;
+      }
+      
+      function addPlanetsToStar(starObj) {
+        if (starObj.planets.length > 0) {
+          console.log("Star already scanned:", starObj.name);
+          return;
+        }
+        const planetCountEl = document.getElementById("sliderPlanetCount");
+        const moonCountEl = document.getElementById("sliderMoonCount");
+        const moonSizeMultEl = document.getElementById("sliderMoonSizeMult");
+        if (!planetCountEl || !moonCountEl || !moonSizeMultEl) {
+          console.error("Planet/moon control elements missing.");
+          return;
+        }
+        const planetCountVal = parseInt(planetCountEl.value);
+        const moonCountVal = parseInt(moonCountEl.value);
+        const moonSizeMultVal = parseFloat(moonSizeMultEl.value);
+        let maxOrbit = 0;
+        for (let i = 0; i < planetCountVal; i++) {
+          const planet = createPlanet();
+          starObj.orbitGroup.add(planet);
+          starObj.planets.push(planet);
+          if (planet.userData.orbitDistance > maxOrbit) {
+            maxOrbit = planet.userData.orbitDistance;
+          }
+          for (let m = 0; m < moonCountVal; m++) {
+            const moon = createMoon(planet, moonSizeMultVal);
+            planet.add(moon);
+          }
+        }
+        const boundingRadius = maxOrbit + 1;
+        if (boundingSphereEnabled) {
+          createSystemBoundingSphere(starObj, boundingRadius);
+        }
+        if (!starObj.oortCloud) { createOortCloud(starObj, boundingRadius * 2, 100); }
+        if (!starObj.asteroidBelt) { createAsteroidBelt(starObj, boundingRadius * 0.8, boundingRadius * 1.2, 50); }
+      }
+      
+      function createPlanet() {
+        const params = {
+          noiseScale: 5.0,
+          mountainHeight: 0.07,
+          seaLevel: 0.005,
+          temperature: 0.50,
+          planetSize: Math.random() * 0.4 + 0.8
+        };
+        const radius = 0.3 * params.planetSize;
+        const segments = 32;
+        const geo = new THREE.SphereGeometry(radius, segments, segments);
+        const mat = new THREE.ShaderMaterial({
+          vertexShader: document.getElementById("ogPlanetVertexShader").textContent,
+          fragmentShader: document.getElementById("ogPlanetFragmentShader").textContent,
+          uniforms: {
+            time: { value: 0.0 },
+            noiseScale: { value: params.noiseScale },
+            mountainHeight: { value: params.mountainHeight },
+            seaLevel: { value: params.seaLevel },
+            temperature: { value: params.temperature }
+          }
+        });
+        const planet = new THREE.Mesh(geo, mat);
+        planet.userData.isPlanet = true;
+        const orbitDist = 2 + Math.random() * 4;
+        planet.userData.orbitDistance = orbitDist;
+        planet.userData.orbitAngle = Math.random() * Math.PI * 2;
+        planet.userData.orbitSpeed = 0.0005 + Math.random() * 0.0005;
+        planet.position.set(orbitDist, 0, 0);
+        const orbitGeom = new THREE.RingGeometry(orbitDist - 0.02, orbitDist + 0.02, 64);
+        const orbitMat = new THREE.MeshBasicMaterial({
+          color: 0x888888,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.5
+        });
+        const orbitRing = new THREE.Mesh(orbitGeom, orbitMat);
+        orbitRing.rotation.x = Math.PI / 2;
+        planet.userData.orbitRing = orbitRing;
+        return planet;
+      }
+      
+      function createMoon(parentPlanet, moonSizeVal) {
+        const r = (Math.random() * 0.1 + 0.1) * moonSizeVal;
+        const segments = 16;
+        const geo = new THREE.SphereGeometry(r, segments, segments);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xbbbbbb });
+        const moon = new THREE.Mesh(geo, mat);
+        moon.userData.isMoon = true;
+        const dist = 0.5 + Math.random() * 1.0;
+        moon.userData.orbitDistance = dist;
+        moon.userData.orbitAngle = Math.random() * Math.PI * 2;
+        moon.userData.orbitSpeed = 0.0008 + Math.random() * 0.0008;
+        moon.position.set(dist, 0, 0);
+        const ringGeo = new THREE.RingGeometry(dist - 0.01, dist + 0.01, 32);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0x999999,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.4
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        moon.userData.ring = ring;
+        parentPlanet.add(ring);
+        return moon;
+      }
+      
+      function createOortCloud(starObj, radius, count) {
+        const geometry = new THREE.BufferGeometry();
+        const positions = [];
+        for (let i = 0; i < count; i++) {
+          const theta = Math.acos(2 * Math.random() - 1);
+          const phi = 2 * Math.PI * Math.random();
+          const r = radius + (Math.random() - 0.5) * radius * 0.1;
+          const x = r * Math.sin(theta) * Math.cos(phi);
+          const y = r * Math.sin(theta) * Math.sin(phi);
+          const z = r * Math.cos(theta);
+          positions.push(x, y, z);
+        }
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+          size: 1.5,
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.3,
+          depthTest: false,
+          depthWrite: false
+        });
+        const cloud = new THREE.Points(geometry, material);
+        starObj.group.add(cloud);
+        starObj.oortCloud = cloud;
+      }
+      
+      function createAsteroidBelt(starObj, innerRadius, outerRadius, count) {
+        const beltGroup = new THREE.Group();
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * 2 * Math.PI;
+          const r = innerRadius + Math.random() * (outerRadius - innerRadius);
+          const x = r * Math.cos(angle);
+          const z = r * Math.sin(angle);
+          const y = (Math.random() - 0.5) * 5;
+          const geo = new THREE.SphereGeometry(Math.random() * 0.3 + 0.1, 6, 6);
+          const mat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+          const asteroid = new THREE.Mesh(geo, mat);
+          asteroid.position.set(x, y, z);
+          beltGroup.add(asteroid);
+        }
+        starObj.group.add(beltGroup);
+        starObj.asteroidBelt = beltGroup;
+      }
+      
+      // ===== Hover Cursor =====
+      const raycaster = new THREE.Raycaster();
+      raycaster.params.Points = { threshold: 10 };
+      const mouse = new THREE.Vector2();
+      function createHoverCursor() {
+        const innerRadius = 8, outerRadius = 10;
+        const segments = 32;
+        const geometry = new THREE.RingGeometry(innerRadius, outerRadius, segments);
+        const material = new THREE.MeshBasicMaterial({
+          color: 0x00ff00,
+          transparent: true,
+          opacity: 0.8,
+          side: THREE.DoubleSide
+        });
+        const ring = new THREE.Mesh(geometry, material);
+        ring.visible = false;
+        scene.add(ring);
+        return ring;
+      }
+      hoverCursor = createHoverCursor();
+      function updateHoverCursor() {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(starfield);
+        if (intersects.length > 0) {
+          const intersect = intersects[0];
+          const pos = new THREE.Vector3().copy(intersect.point);
+          hoverCursor.position.copy(pos);
+          hoverCursor.visible = true;
+        } else {
+          hoverCursor.visible = false;
+        }
+        updateHoverCursorScale();
+      }
+      function updateHoverCursorScale() {
+        if (!hoverCursor.visible) return;
+        const vFOV = THREE.MathUtils.degToRad(camera.fov);
+        const distance = camera.position.distanceTo(hoverCursor.position);
+        const worldUnitsPerPixel = 2 * distance * Math.tan(vFOV / 2) / window.innerHeight;
+        const desiredPixelSize = 20;
+        const baseDiameter = 20;
+        const scaleFactor = (desiredPixelSize * worldUnitsPerPixel) / baseDiameter;
+        hoverCursor.scale.set(scaleFactor, scaleFactor, scaleFactor);
+      }
+      renderer.domElement.addEventListener("mousemove", function(e) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        updateHoverCursor();
+      });
+      
+      // ===== Double-Click Scanning =====
+      renderer.domElement.addEventListener("dblclick", function(e) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const dblMouse = new THREE.Vector2();
+        dblMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        dblMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(dblMouse, camera);
+        const intersects = raycaster.intersectObject(starfield);
+        if (intersects.length > 0) {
+          const index = intersects[0].index;
+          selectedStarIndex = index;
+          const posArray = starfieldGeo.getAttribute("position").array;
+          const pos = new THREE.Vector3(
+            posArray[index * 3],
+            posArray[index * 3 + 1],
+            posArray[index * 3 + 2]
+          );
+          let starObj = markedStars.find(s => s.index === index);
+          if (!starObj) { starObj = markStar(index, pos); }
+          addPlanetsToStar(starObj);
+          spawnScanPulse(pos);
+          controls.target.copy(starObj.group.position);
+          console.log("Scanning star:", starObj.name);
+          updateStarfieldFilter();
+          if ((hideOutsideSector || hideOutsideGrid) && starObj) {
+            const currentSector = parseSectorCoords(starObj.position);
+            const sectorOrigin = new THREE.Vector3(currentSector.x * SECTOR_SIZE, currentSector.y * SECTOR_SIZE, currentSector.z * SECTOR_SIZE);
+            sectorGrid.position.copy(sectorOrigin);
+            subsectorGrid.position.copy(sectorOrigin);
+          } else {
+            sectorGrid.position.set(0, 0, 0);
+            subsectorGrid.position.set(0, 0, 0);
+          }
+          updateSystemPreview(starObj);
+          if (selectedCursor && selectedCursor.parent) {
+            selectedCursor.parent.remove(selectedCursor);
+            selectedCursor = null;
+          }
+          const cursorRadius = starObj.boundingSphere ? starObj.boundingSphere.geometry.parameters.radius : 20;
+          selectedCursor = createSelectedCursor(cursorRadius);
+          // Store the initial base scale.
+          selectedCursor.baseScale = cursorBaseScale;
+          starObj.group.add(selectedCursor);
+        }
+      });
+      
+      // ===== Scan Pulse Visual Feedback =====
+      function spawnScanPulse(pos) {
+        const size = 64;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const gradient = ctx.createRadialGradient(size/2, size/2, size/8, size/2, size/2, size/2);
+        gradient.addColorStop(0, "rgba(0,255,0,0.8)");
+        gradient.addColorStop(1, "rgba(0,255,0,0)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(size/2, size/2, size/2 - 2, 0, Math.PI*2);
+        ctx.fill();
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.copy(pos);
+        sprite.scale.set(10, 10, 1);
+        scene.add(sprite);
+        const duration = 1000;
+        const start = performance.now();
+        function animatePulse() {
+          const elapsed = performance.now() - start;
+          let t = elapsed / duration;
+          if (t < 1) {
+            let newScale = 10 + t * 50;
+            sprite.scale.set(newScale, newScale, 1);
+            sprite.material.opacity = 1 - t;
+            requestAnimationFrame(animatePulse);
+          } else {
+            scene.remove(sprite);
+          }
+        }
+        animatePulse();
+      }
+      
+      // ===== Star Size Update =====
+      document.getElementById("sliderStarSize").addEventListener("input", function(e) {
+        const newSize = parseFloat(e.target.value);
+        document.getElementById("valStarSize").innerText = newSize.toFixed(2);
+        starfieldMat.size = newSize;
+        markedStars.forEach(function(star) {
+          if (star.scannedIndicator) {
+            star.scannedIndicator.scale.set(3, 3, 3);
+          }
+        });
+      });
+      
+      // ===== Selected Cursor Animation =====
+      function animateSelectedCursor() {
+        if (selectedCursor && selectionCursorEnabled) {
+          // Always face the camera.
+          selectedCursor.lookAt(camera.position);
+          // Pulse effect: scale oscillates by ±10%
+          let pulse = 1 + 0.1 * Math.sin(performance.now() * cursorPulseSpeed);
+          selectedCursor.scale.set(cursorBaseScale * pulse,
+                                   cursorBaseScale * pulse,
+                                   cursorBaseScale * pulse);
+        }
+      }
+      
+      // ===== Starfield Filtering Update =====
+      function updateStarfieldFilter() {
+        if ((!hideOutsideSector && !hideOutsideGrid) || selectedStarIndex === null) {
+          starfieldGeo.setAttribute("position", new THREE.Float32BufferAttribute(allStarPositions, 3));
+          starfieldGeo.setAttribute("color", new THREE.Float32BufferAttribute(allStarColors, 3));
+          starfieldGeo.attributes.position.needsUpdate = true;
+          starfieldGeo.attributes.color.needsUpdate = true;
+          sectorGrid.position.set(0, 0, 0);
+          subsectorGrid.position.set(0, 0, 0);
+          return;
+        }
+        const starObj = markedStars.find(s => s.index === selectedStarIndex);
+        if (!starObj) return;
+        const currentSector = assignSectorToStar(starObj.position).coords;
+        const currentGrid = assignGridToStar(starObj.position);
+        const filteredPositions = [];
+        const filteredColors = [];
+        for (let i = 0; i < allStarPositions.length; i += 3) {
+          const pos = new THREE.Vector3(allStarPositions[i], allStarPositions[i+1], allStarPositions[i+2]);
+          let include = true;
+          const starSector = parseSectorCoords(pos);
+          if (hideOutsideGrid) {
+            if (starSector.x !== currentSector.x || starSector.y !== currentSector.y || starSector.z !== currentSector.z) {
+              include = false;
+            } else {
+              const grid = assignGridToStar(pos);
+              if (grid.x !== currentGrid.x || grid.y !== currentGrid.y || grid.z !== currentGrid.z) {
+                include = false;
+              }
+            }
+          } else if (hideOutsideSector) {
+            if (starSector.x !== currentSector.x || starSector.y !== currentSector.y || starSector.z !== currentSector.z) {
+              include = false;
+            }
+          }
+          if (include) {
+            filteredPositions.push(pos.x, pos.y, pos.z);
+            const idx = i;
+            filteredColors.push(allStarColors[idx], allStarColors[idx+1], allStarColors[idx+2]);
+          }
+        }
+        starfieldGeo.setAttribute("position", new THREE.Float32BufferAttribute(filteredPositions, 3));
+        starfieldGeo.setAttribute("color", new THREE.Float32BufferAttribute(filteredColors, 3));
+        starfieldGeo.attributes.position.needsUpdate = true;
+        starfieldGeo.attributes.color.needsUpdate = true;
+        if (hideOutsideSector || hideOutsideGrid) {
+          const sectorOrigin = new THREE.Vector3(currentSector.x * SECTOR_SIZE, currentSector.y * SECTOR_SIZE, currentSector.z * SECTOR_SIZE);
+          sectorGrid.position.copy(sectorOrigin);
+          subsectorGrid.position.copy(sectorOrigin);
+        }
+      }
+      
+      document.getElementById("checkboxHideSector").addEventListener("change", function(e) {
+        hideOutsideSector = e.target.checked;
+        updateStarfieldFilter();
+      });
+      document.getElementById("checkboxHideGrid").addEventListener("change", function(e) {
+        hideOutsideGrid = e.target.checked;
+        updateStarfieldFilter();
+      });
+      
+      // ===== System Bounding Sphere Settings Event Listeners =====
+      document.getElementById("checkboxBoundingSphere").addEventListener("change", function(e) {
+        boundingSphereEnabled = e.target.checked;
+      });
+      document.getElementById("sliderGlowIntensity").addEventListener("input", function(e) {
+        glowIntensity = parseFloat(e.target.value);
+        document.getElementById("valGlowIntensity").innerText = e.target.value;
+      });
+      document.getElementById("sliderGlowSizeFactor").addEventListener("input", function(e) {
+        glowSizeFactor = parseFloat(e.target.value);
+        document.getElementById("valGlowSizeFactor").innerText = e.target.value;
+      });
+      
+      // ===== Star Options Event Listeners =====
+      document.getElementById("checkboxRealisticStars").addEventListener("change", function(e) {
+        realisticStarsEnabled = e.target.checked;
+      });
+      document.getElementById("sliderStarColorMix").addEventListener("input", function(e) {
+        starColorMix = parseFloat(e.target.value);
+        document.getElementById("valStarColorMix").innerText = e.target.value;
+      });
+      document.getElementById("sliderStarOpacity").addEventListener("input", function(e) {
+        starOpacity = parseFloat(e.target.value);
+        document.getElementById("valStarOpacity").innerText = parseFloat(e.target.value).toFixed(2);
+        if (starfieldMat) {
+          starfieldMat.opacity = starOpacity;
+        }
+      });
+      
+      // ===== Selection Cursor Options Event Listeners =====
+      document.getElementById("checkboxSelectionCursor").addEventListener("change", function(e) {
+        selectionCursorEnabled = e.target.checked;
+        if (!selectionCursorEnabled && selectedCursor && selectedCursor.parent) {
+          selectedCursor.parent.remove(selectedCursor);
+          selectedCursor = null;
+        }
+      });
+      document.getElementById("sliderCursorBaseScale").addEventListener("input", function(e) {
+        cursorBaseScale = parseFloat(e.target.value);
+        document.getElementById("valCursorBaseScale").innerText = e.target.value;
+      });
+      document.getElementById("sliderCursorPulseSpeed").addEventListener("input", function(e) {
+        cursorPulseSpeed = parseFloat(e.target.value);
+        document.getElementById("valCursorPulseSpeed").innerText = e.target.value;
+      });
+      
+      // ===== Create Starfield =====
+      function createStarfield(opts) {
+        opts = opts || {};
+        const count = opts.count || parseInt(document.getElementById("sliderStarCount").value) || 30000;
+        const range = opts.range || 2000;
+        const starSize = opts.starSize || parseFloat(document.getElementById("sliderStarSize").value) || 5;
+        starfieldGeo = new THREE.BufferGeometry();
+        const positions = [];
+        const colors = [];
+        for (let i = 0; i < count; i++) {
+          const x = (Math.random()-0.5)*range;
+          const y = (Math.random()-0.5)*range;
+          const z = (Math.random()-0.5)*range;
+          positions.push(x, y, z);
+          let color;
+          if (realisticStarsEnabled) {
+            const realisticColor = getRealisticStarColor();
+            const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+            color = realisticColor.lerp(randomColor, starColorMix);
+          } else {
+            color = new THREE.Color(Math.random(), Math.random(), Math.random());
+          }
+          colors.push(color.r, color.g, color.b);
+        }
+        allStarPositions = positions.slice();
+        allStarColors = colors.slice();
+        starfieldGeo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        starfieldGeo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+        starfieldMat = new THREE.PointsMaterial({
+          size: starSize,
+          sizeAttenuation: false,
+          vertexColors: true,
+          map: createCircularTexture(),
+          transparent: true,
+          alphaTest: 0.5,
+          opacity: starOpacity
+        });
+        const mesh = new THREE.Points(starfieldGeo, starfieldMat);
+        scene.add(mesh);
+        return mesh;
+      }
+      
+      function createCircularTexture() {
+        const size = 64;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+        gradient.addColorStop(0, "white");
+        gradient.addColorStop(0.5, "white");
+        gradient.addColorStop(1, "transparent");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(size/2, size/2, size/2 - 2, 0, Math.PI*2);
+        ctx.fill();
+        return new THREE.CanvasTexture(canvas);
+      }
+      
+      starfield = createStarfield({ count: parseInt(document.getElementById("sliderStarCount").value), range: 2000, starSize: parseFloat(document.getElementById("sliderStarSize").value) });
+      
+      // ===== Animation Loop =====
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        updateHoverCursorScale();
+        markedStars.forEach(star => {
+          if (star.scannedIndicator) {
+            const dist = camera.position.distanceTo(star.group.position);
+            const scaleFactor = 1 + (1000 - Math.min(dist, 1000)) / 1000;
+            star.scannedIndicator.scale.set(3 * scaleFactor, 3 * scaleFactor, 3 * scaleFactor);
+          }
+        });
+        if (hoverCursor.visible) {
+          hoverCursor.rotation.z += 0.05;
+          hoverCursor.rotation.x += 0.03;
+          hoverCursor.rotation.y += 0.02;
+        }
+        // Animate planets and moons.
+        for (let idx in starMeshes) {
+          const starObj = starMeshes[idx];
+          starObj.orbitGroup.children.forEach(child => {
+            if (child.userData.isPlanet) {
+              child.userData.orbitAngle += child.userData.orbitSpeed;
+              const r = child.userData.orbitDistance;
+              const ang = child.userData.orbitAngle;
+              child.position.set(r * Math.cos(ang), 0, r * Math.sin(ang));
+              if (child.material && child.material.uniforms && child.material.uniforms.time) {
+                child.material.uniforms.time.value = performance.now() * 0.001;
+              }
+              child.children.forEach(moon => {
+                if (moon.userData.isMoon) {
+                  moon.userData.orbitAngle += moon.userData.orbitSpeed;
+                  const d = moon.userData.orbitDistance;
+                  const a = moon.userData.orbitAngle;
+                  moon.position.set(d * Math.cos(a), 0, d * Math.sin(a));
+                }
+              });
+            }
+          });
+        }
+        // Animate selected cursor if present.
+        animateSelectedCursor();
+        renderer.render(scene, camera);
+      }
+      animate();
+      
+      window.addEventListener("resize", function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+      
+      document.getElementById("regenStarfieldButton").addEventListener("click", function() {
+        scene.remove(starfield);
+        starfield = createStarfield({ count: parseInt(document.getElementById("sliderStarCount").value), range: 2000, starSize: parseFloat(document.getElementById("sliderStarSize").value) });
+        starfieldGeo.setAttribute("position", new THREE.Float32BufferAttribute(allStarPositions, 3));
+        starfieldGeo.setAttribute("color", new THREE.Float32BufferAttribute(allStarColors, 3));
+        starfieldGeo.attributes.position.needsUpdate = true;
+        starfieldGeo.attributes.color.needsUpdate = true;
+        updateStarfieldFilter();
+      });
+      
+      // Utility function to generate a realistic star color.
+      function getRealisticStarColor() {
+        // Simple implementation: 70% chance white, 30% chance slightly yellow.
+        if (Math.random() < 0.7) {
+          return new THREE.Color(1, 1, 1);
+        } else {
+          return new THREE.Color(1, 0.95, 0.8);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
